@@ -15,6 +15,15 @@ function safe($value, $doubleEncode = true)
 	return htmlspecialchars( (string) $value, ENT_QUOTES, 'utf-8', $doubleEncode);
 }
 
+/**
+ * @param float $value
+ *
+ * @return string
+ */
+function currency($value){
+	return '&euro;&nbsp;' . number_format($value, 2);
+}
+
 // Database connection
 ///////////////////////////////////////////////
 

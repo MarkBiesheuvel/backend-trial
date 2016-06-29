@@ -11,7 +11,29 @@ $commission = 0.10; // 10% commission
 // Prepare query
 $result = $db
 	->prepare('
-		SELECT * FROM bookings
+		SELECT m.first_month, COUNT(m.booker_id) total_bookers, SUM(s.revenue) total_revenue, SUM(s.number_of_bookings) total_number_of_bookings
+		FROM (
+			SELECT b.booker_id, strftime("%Y-%m", min(i.end_timestamp), "unixepoch") AS first_month
+			FROM bookings b
+			INNER JOIN bookingitems i ON b.id = i.booking_id
+			WHERE i.item_id IN (
+				SELECT item_id
+				FROM spaces
+			)
+			GROUP BY b.booker_id
+		) AS m
+		LEFT JOIN (
+			SELECT b.booker_id, SUM(i.locked_total_price) AS revenue, COUNT(b.id) AS number_of_bookings
+			FROM bookings b
+			INNER JOIN bookingitems i ON b.id = i.booking_id
+			WHERE i.item_id IN (
+				SELECT item_id
+				FROM spaces
+			)
+			GROUP BY b.booker_id
+		) s ON m.booker_id = s.booker_id
+		GROUP BY m.first_month
+		ORDER BY m.first_month
 	')
 	->run()
 ;
@@ -46,20 +68,20 @@ $result = $db
 			<thead>
 				<tr>
 					<th>Start</th>
-					<th>Bookers</th>
-					<th># of bookings (avg)</th>
-					<th>Turnover (avg)</th>
-					<th>LTV</th>
+					<th class="right">Bookers</th>
+					<th class="right"># of bookings (avg)</th>
+					<th class="right">Turnover (avg)</th>
+					<th class="right">LTV</th>
 				</tr>
 			</thead>
 			<tbody>
 				<?php foreach ($result as $index => $row): ?>
 					<tr>
-						<td>TODO</td>
-						<td>TODO</td>
-						<td>TODO</td>
-						<td>TODO</td>
-						<td>TODO</td>
+						<td><?= $row->first_month ?></td>
+						<td class="right"><?= $row->total_bookers ?></td>
+						<td class="right"><?= number_format($row->total_number_of_bookings / $row->total_bookers, 1) ?></td>
+						<td class="right"><?= currency($row->total_revenue / $row->total_bookers) ?></td>
+						<td class="right"><?= currency($row->total_revenue / $row->total_bookers * $commission) ?></td>
 					</tr>
 				<?php endforeach; ?>
 			</tbody>
