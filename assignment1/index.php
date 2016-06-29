@@ -11,29 +11,31 @@ $commission = 0.10; // 10% commission
 // Prepare query
 $result = $db
 	->prepare('
-		SELECT m.first_month, COUNT(m.booker_id) total_bookers, SUM(s.revenue) total_revenue, SUM(s.number_of_bookings) total_number_of_bookings
+		SELECT t.first_month, COUNT(t.booker_id) AS total_bookers,
+			SUM(t.revenue) AS total_revenue, SUM(t.number_of_bookings) AS total_number_of_bookings
 		FROM (
-			SELECT b.booker_id, strftime("%Y-%m", min(i.end_timestamp), "unixepoch") AS first_month
-			FROM bookings b
+			SELECT m.booker_id, strftime("%Y-%m", m.first_booking, "unixepoch") AS first_month,
+				SUM(i.locked_total_price) AS revenue, COUNT(b.id) AS number_of_bookings
+			FROM (
+				SELECT b.booker_id, MIN(i.end_timestamp) AS first_booking
+				FROM bookings b
+				INNER JOIN bookingitems i ON b.id = i.booking_id
+				WHERE i.item_id IN (
+					SELECT item_id
+					FROM spaces
+				)
+				GROUP BY b.booker_id
+			) AS m
+			INNER JOIN bookings b ON m.booker_id = b.booker_id
 			INNER JOIN bookingitems i ON b.id = i.booking_id
 			WHERE i.item_id IN (
 				SELECT item_id
 				FROM spaces
 			)
-			GROUP BY b.booker_id
-		) AS m
-		LEFT JOIN (
-			SELECT b.booker_id, SUM(i.locked_total_price) AS revenue, COUNT(b.id) AS number_of_bookings
-			FROM bookings b
-			INNER JOIN bookingitems i ON b.id = i.booking_id
-			WHERE i.item_id IN (
-				SELECT item_id
-				FROM spaces
-			)
-			GROUP BY b.booker_id
-		) s ON m.booker_id = s.booker_id
-		GROUP BY m.first_month
-		ORDER BY m.first_month
+			AND DATE(i.end_timestamp, "unixepoch") < DATE(m.first_booking, "unixepoch", "start of month", "+13 months")
+			GROUP BY m.booker_id
+		) AS t
+		GROUP BY t.first_month
 	')
 	->run()
 ;
