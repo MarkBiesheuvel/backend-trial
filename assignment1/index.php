@@ -5,8 +5,10 @@ require_once(__DIR__ . '/errors.php');
 require_once(__DIR__ . '/include.php');
 
 // Vars
-$period = 12; // Life-Time of 12 months
-$commission = 0.10; // 10% commission
+$period = intval(post('period', 12)); // Life-Time of 12 months
+$commission = floatval(post('commission', 10)); // 10% commission
+
+$periodOptions = [3, 6, 12, 18, 24];
 
 // Prepare query
 $result = $db
@@ -28,11 +30,13 @@ $result = $db
 			) AS m
 			INNER JOIN bookings b ON m.booker_id = b.booker_id
 			INNER JOIN bookingitems i ON b.id = i.booking_id
-			WHERE i.item_id IN (
-				SELECT item_id
-				FROM spaces
-			)
-			AND DATE(i.end_timestamp, "unixepoch") < DATE(m.first_booking, "unixepoch", "start of month", "+13 months")
+			WHERE 
+--			i.item_id IN (
+--				SELECT item_id
+--				FROM spaces
+--			)
+--			AND
+			DATE(i.end_timestamp, "unixepoch") < DATE(m.first_booking, "unixepoch", "start of month", "+'.$period.' months")
 			GROUP BY m.booker_id
 		) AS t
 		GROUP BY t.first_month
@@ -66,6 +70,30 @@ $result = $db
 	</head>
 	<body>
 		<h1>Report:</h1>
+
+		<form action="?" method="post">
+			<dl>
+				<dt>Period</dt>
+				<dd>
+					<select name="period">
+						<?php foreach($periodOptions as $option): ?>
+							<option value="<?= $option?>" <?= ($period === $option)? 'selected' : '' ?>>
+								<?= $option ?> months
+							</option>
+						<?php endforeach; ?>
+					</select>
+				</dd>
+				<dt>Commision</dt>
+				<dd>
+					<input type="number" name="commission" value="<?= $commission ?>"> %
+				</dd>
+				<dt>&nbsp;</dt>
+				<dd><input type="submit"></dd>
+			</dl>
+		</form>
+
+		<hr>
+
 		<table class="report-table">
 			<thead>
 				<tr>
@@ -83,7 +111,7 @@ $result = $db
 						<td class="right"><?= $row->total_bookers ?></td>
 						<td class="right"><?= number_format($row->total_number_of_bookings / $row->total_bookers, 1) ?></td>
 						<td class="right"><?= currency($row->total_revenue / $row->total_bookers) ?></td>
-						<td class="right"><?= currency($row->total_revenue / $row->total_bookers * $commission) ?></td>
+						<td class="right"><?= currency($row->total_revenue / $row->total_bookers * $commission / 100) ?></td>
 					</tr>
 				<?php endforeach; ?>
 			</tbody>

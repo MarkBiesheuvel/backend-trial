@@ -24,6 +24,14 @@ function currency($value){
 	return '&euro;&nbsp;' . number_format($value, 2);
 }
 
+function post($name, $default = null){
+	if (array_key_exists($name, $_POST)) {
+		return $_POST[$name];
+	} else {
+		return $default;
+	}
+}
+
 // Database connection
 ///////////////////////////////////////////////
 
